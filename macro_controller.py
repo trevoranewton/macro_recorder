@@ -8,8 +8,8 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 macro_dir = os.path.join(base_dir, "macros")
 os.makedirs(macro_dir, exist_ok=True)
 
-record_script = os.path.join(base_dir, "Record Macro.py")
-execute_script = os.path.join(base_dir, "Exectue Macro.py")
+record_script = os.path.join(base_dir, "record_macro.py")
+execute_script = os.path.join(base_dir, "execute_macro.py")
 control_file = os.path.join(base_dir, "control.txt")
 
 record_process = None
