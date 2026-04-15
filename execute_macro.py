@@ -125,4 +125,4 @@ while True:
     if playing:
         play_step()
 
-    time.sleep(0.005)
+    time.sleep(0.000)
