@@ -103,20 +103,34 @@ def check_control():
     if not os.path.exists(control_file):
         return
 
-    with open(control_file, "r") as f:
-        cmd = f.read().strip()
+    # SAFE READ
+    try:
+        with open(control_file, "r") as f:
+            lines = f.readlines()
+    except PermissionError:
+        return
 
-    if cmd == "play_start":
-        playing = True
-        event_index = 0
-        last_event_time = time.time()
-        print("▶️ Playing macro...")
+    if not lines:
+        return
 
-    elif cmd == "play_stop":
-        playing = False
-        print("⏹️ Playback stopped.")
+    for cmd in lines:
+        cmd = cmd.strip()
 
-    open(control_file, "w").close()
+        if cmd == "play_start":
+            playing = True
+            event_index = 0
+            last_event_time = time.time()
+            print("▶️ Playing macro...")
+
+        elif cmd == "play_stop":
+            playing = False
+            print("⏹️ Playback stopped.")
+
+    # SAFE CLEAR
+    try:
+        open(control_file, "w").close()
+    except PermissionError:
+        pass
 
 # ====== MAIN LOOP ======
 while True:

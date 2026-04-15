@@ -19,8 +19,8 @@ active = False  # whether currently running action
 
 # ====== WRITE COMMAND ======
 def write_command(cmd):
-    with open(control_file, "w") as f:
-        f.write(cmd)
+    with open(control_file, "a") as f:
+        f.write(cmd + "\n")
 
 # ====== MODE SWITCHING ======
 def set_record_mode():
@@ -77,18 +77,12 @@ def toggle_action():
     if mode is None:
         return
 
-    if not active:
-        if mode == "record":
-            write_command("record_start")
-        elif mode == "play":
-            write_command("play_start")
-        active = True
-    else:
-        if mode == "record":
-            write_command("record_stop")
-        elif mode == "play":
-            write_command("play_stop")
-        active = False
+    if mode == "record":
+        write_command("record_start" if not active else "record_stop")
+    elif mode == "play":
+        write_command("play_start" if not active else "play_stop")
+
+    active = not active
 
 # ====== MAIN ======
 print("Pipeline Controller Running")
