@@ -91,6 +91,8 @@ def play_step():
             keyboard_ctrl.press(key)
         elif event["action"] == "up":
             keyboard_ctrl.release(key)
+    elif event["type"] == "noop":
+        pass
 
     event_index += 1
 
