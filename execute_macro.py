@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 import msvcrt
 from dataclasses import dataclass
@@ -346,15 +347,14 @@ def load_single_macro_sequence(available_macros: List[str]) -> List[SequenceStep
     return [SequenceStep(macro_name=selected_macro, repeats=1)]
 
 
-def configure_steps(available_macros: List[str], preset_file: str) -> List[SequenceStep]:
+def configure_steps_playback(available_macros: List[str], preset_file: str) -> List[SequenceStep]:
     presets = load_presets(preset_file)
 
     while True:
         print("")
-        print("1: Load saved preset")
-        print("2: Build new sequence")
-        print("3: Load macro")
-        mode_choice = prompt_menu_choice(3, "Choose option: ")
+        print("1: Load saved sequence")
+        print("2: Load macro")
+        mode_choice = prompt_menu_choice(2, "Choose option: ")
 
         if mode_choice == 1:
             loaded = load_sequence_from_preset(presets)
@@ -364,16 +364,22 @@ def configure_steps(available_macros: List[str], preset_file: str) -> List[Seque
                 continue
             return loaded
 
-        if mode_choice == 3:
-            return load_single_macro_sequence(available_macros)
-
-        built = build_new_sequence(available_macros)
-        prompt_save_preset(built, presets, preset_file)
-        return built
+        return load_single_macro_sequence(available_macros)
 
 
-def configure_plan(available_macros: List[str], preset_file: str) -> PlaybackPlan:
-    steps = configure_steps(available_macros, preset_file)
+def configure_steps_create(available_macros: List[str], preset_file: str) -> List[SequenceStep]:
+    presets = load_presets(preset_file)
+    built = build_new_sequence(available_macros)
+    prompt_save_preset(built, presets, preset_file)
+    return built
+
+
+def configure_plan(available_macros: List[str], preset_file: str, startup_mode: str) -> PlaybackPlan:
+    if startup_mode == "configure":
+        steps = configure_steps_create(available_macros, preset_file)
+    else:
+        steps = configure_steps_playback(available_macros, preset_file)
+
     sequence_loops = prompt_repeats(
         "Repeat full sequence (Enter=1, number, inf): "
     )
@@ -415,6 +421,11 @@ def main() -> None:
     macro_dir = os.path.join(root_dir, "Macros")
     control_file = os.path.join(root_dir, "control.txt")
     preset_file = os.path.join(root_dir, "sequence_presets.json")
+    startup_mode = "playback"
+    if len(sys.argv) >= 3 and sys.argv[1] == "--mode":
+        startup_mode = sys.argv[2].strip().lower()
+    if startup_mode not in {"playback", "configure"}:
+        startup_mode = "playback"
 
     os.makedirs(macro_dir, exist_ok=True)
     clear_input_buffer()
@@ -424,7 +435,7 @@ def main() -> None:
         print("No macros found. Record a macro first.")
         return
 
-    plan = configure_plan(available_macros, preset_file)
+    plan = configure_plan(available_macros, preset_file, startup_mode)
     events_by_macro = load_events_for_steps(macro_dir, plan.steps)
 
     print("")

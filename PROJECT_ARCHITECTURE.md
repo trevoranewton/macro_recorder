@@ -31,6 +31,7 @@ The controller is the central command layer of the system.
 - Handles global hotkeys:
 - `Ctrl + Shift + 1` -> recording mode
 - `Ctrl + Shift + 2` -> playback mode
+- `Ctrl + Shift + 3` -> configure sequence mode
 - `Ctrl + Shift + 0` -> start/stop execution
 - Writes commands to `control.txt` for inter-process communication
 
@@ -76,7 +77,9 @@ Users are prompted to name and save recordings after completion.
 This script replays recorded macros using system-level input simulation.
 
 ### Features
-- Prompts for `Load saved preset`, `Build new sequence`, or `Load macro`
+- Supports startup modes:
+- Playback mode menu: `Load saved sequence` or `Load macro`
+- Configure mode flow: build/save a new sequence preset
 - Uses numbered menu selection for macros and presets
 - Supports per-step repeat counts (`1`, `N`, or `inf`) with `inf` restricted to the final step
 - Supports full-sequence loop count at playback configuration (`1`, `N`, or `inf`)
