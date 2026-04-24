@@ -79,8 +79,8 @@ def set_play_mode() -> None:
         record_process.terminate()
         record_process = None
 
-    # Keep current playback config if already loaded.
-    start_execute_process(start_mode="playback", restart=False)
+    # Always restart to return to top playback menu.
+    start_execute_process(start_mode="playback", restart=True)
 
 
 def set_configure_sequence_mode() -> None:
