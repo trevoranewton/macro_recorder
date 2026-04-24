@@ -76,10 +76,9 @@ def toggle_action():
 
     if mode == "record":
         write_command("record_start" if not active else "record_stop")
+        active = not active
     elif mode == "play":
-        write_command("play_start" if not active else "play_stop")
-
-    active = not active
+        write_command("play_toggle")
 
 # ====== MAIN ======
 print("Pipeline Controller Running")

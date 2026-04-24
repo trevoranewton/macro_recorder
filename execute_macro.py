@@ -452,6 +452,11 @@ def main() -> None:
                 player.start()
             elif cmd == "play_stop":
                 player.stop()
+            elif cmd == "play_toggle":
+                if player.playing:
+                    player.stop()
+                else:
+                    player.start()
 
         player.step()
         time.sleep(0.001)
