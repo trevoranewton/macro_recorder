@@ -155,6 +155,7 @@ def read_user_input(prompt_text: str) -> str:
         # Handle Enter
         if ch in ("\r", "\n"):
             print("")
+            print("")
             return "".join(chars).strip()
 
         # Handle Ctrl+C
