@@ -18,6 +18,11 @@ os.makedirs(macro_dir, exist_ok=True)
 control_file = os.path.join(root_dir, "control.txt")
 mouse_controller = mouse.Controller()
 
+
+def read_user_input(prompt_text):
+    print("")
+    return input(prompt_text).strip()
+
 # ====== COUNTDOWN POPUP ======
 def countdown_popup(seconds=3):
     root = tk.Tk()
@@ -155,10 +160,10 @@ def check_control():
         # 🔥 CLEAN THE DATA HERE
         cleaned_events = remove_control_hotkey_sequences(events)
 
-        choice = input("Save recording? (y/n): ").strip().lower()
+        choice = read_user_input("Save recording? (y/n): ").lower()
 
         if choice == "y":
-            filename = input("Enter macro name: ").strip() or "macro"
+            filename = read_user_input("Enter macro name: ") or "macro"
 
             macro_folder = os.path.join(macro_dir, filename)
             os.makedirs(macro_folder, exist_ok=True)
