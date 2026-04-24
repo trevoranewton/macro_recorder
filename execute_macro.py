@@ -143,6 +143,12 @@ def clear_input_buffer() -> None:
         msvcrt.getch()
 
 
+def read_user_input(prompt_text: str) -> str:
+    # Sometimes mode switches leave a null char in console input.
+    # Strip it so prompts do not receive "^@" artifacts.
+    return input(prompt_text).replace("\x00", "").strip()
+
+
 def parse_key(key_str: str):
     try:
         return getattr(Key, key_str)
@@ -162,7 +168,7 @@ def parse_positive_int(value: str) -> Optional[int]:
 
 def prompt_repeats(prompt_text: str) -> Optional[int]:
     while True:
-        raw = input(prompt_text).strip().lower()
+        raw = read_user_input(prompt_text).lower()
         if raw == "":
             return 1
         if raw in {"inf", "infinite", "indefinite"}:
@@ -175,7 +181,7 @@ def prompt_repeats(prompt_text: str) -> Optional[int]:
 
 def prompt_menu_choice(max_value: int, prompt_text: str) -> int:
     while True:
-        raw = input(prompt_text).strip()
+        raw = read_user_input(prompt_text)
         parsed = parse_positive_int(raw)
         if parsed is not None and parsed <= max_value:
             return parsed
@@ -267,13 +273,13 @@ def build_new_sequence(available_macros: List[str]) -> List[SequenceStep]:
 
         # Infinite step can only be the last step.
         if steps and steps[-1].repeats is INFINITE:
-            done = input("Last step is infinite. Press Enter to finish: ").strip()
+            done = read_user_input("Last step is infinite. Press Enter to finish: ")
             if done == "":
                 break
             print("You can only finish now because infinite repeat must be last.")
             continue
 
-        raw = input("Select macro number or press Enter when done: ").strip()
+        raw = read_user_input("Select macro number or press Enter when done: ")
         if raw == "":
             if not steps:
                 print("Add at least one step before finishing.")
@@ -293,18 +299,20 @@ def build_new_sequence(available_macros: List[str]) -> List[SequenceStep]:
 
 
 def prompt_save_preset(steps: List[SequenceStep], presets: Dict[str, list], preset_file: str) -> None:
-    save_choice = input("Save this sequence as a preset? (y/n): ").strip().lower()
+    save_choice = read_user_input("Save this sequence as a preset? (y/n): ").lower()
     if save_choice != "y":
         return
 
     while True:
-        preset_name = input("Preset name: ").strip()
+        preset_name = read_user_input("Preset name: ")
         if not preset_name:
             print("Preset name cannot be empty.")
             continue
 
         if preset_name in presets:
-            overwrite = input(f'Preset "{preset_name}" exists. Overwrite? (y/n): ').strip().lower()
+            overwrite = read_user_input(
+                f'Preset "{preset_name}" exists. Overwrite? (y/n): '
+            ).lower()
             if overwrite != "y":
                 continue
 
