@@ -144,9 +144,43 @@ def clear_input_buffer() -> None:
 
 
 def read_user_input(prompt_text: str) -> str:
-    # Sometimes mode switches leave a null char in console input.
-    # Strip it so prompts do not receive "^@" artifacts.
-    return input(prompt_text).replace("\x00", "").strip()
+    # Use manual console reading so control chars from hotkeys
+    # (like Ctrl+2 -> NUL) are ignored instead of being echoed as "^@".
+    print(prompt_text, end="", flush=True)
+    chars: List[str] = []
+
+    while True:
+        ch = msvcrt.getwch()
+
+        # Handle Enter
+        if ch in ("\r", "\n"):
+            print("")
+            return "".join(chars).strip()
+
+        # Handle Ctrl+C
+        if ch == "\x03":
+            raise KeyboardInterrupt
+
+        # Ignore Windows extended/special key markers.
+        if ch in ("\x00", "\xe0"):
+            # Extended keys are often 2-part sequences.
+            if msvcrt.kbhit():
+                _ = msvcrt.getwch()
+            continue
+
+        # Handle backspace editing.
+        if ch == "\b":
+            if chars:
+                chars.pop()
+                print("\b \b", end="", flush=True)
+            continue
+
+        # Ignore other non-printable control chars.
+        if ord(ch) < 32:
+            continue
+
+        chars.append(ch)
+        print(ch, end="", flush=True)
 
 
 def parse_key(key_str: str):
