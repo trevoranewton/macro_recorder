@@ -422,7 +422,7 @@ def configure_plan(available_macros: List[str], preset_file: str, startup_mode: 
         steps = configure_steps_playback(available_macros, preset_file)
 
     sequence_loops = prompt_repeats(
-        "Repeat full sequence (Enter=1, number, inf): "
+        "How many times should this run? (Enter=1, number, inf): "
     )
     return PlaybackPlan(steps=steps, sequence_loops=sequence_loops)
 
