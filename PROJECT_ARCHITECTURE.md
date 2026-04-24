@@ -75,7 +75,7 @@ Users are prompted to name and save recordings after completion.
 This script replays recorded macros using system-level input simulation.
 
 ### Features
-- Prompts for `Load saved preset` or `Build new sequence`
+- Prompts for `Load saved preset`, `Build new sequence`, or `Load macro`
 - Uses numbered menu selection for macros and presets
 - Supports per-step repeat counts (`1`, `N`, or `inf`) with `inf` restricted to the final step
 - Supports full-sequence loop count at playback configuration (`1`, `N`, or `inf`)

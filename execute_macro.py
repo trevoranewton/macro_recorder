@@ -335,6 +335,17 @@ def load_sequence_from_preset(presets: Dict[str, list]) -> Optional[List[Sequenc
     return steps
 
 
+def load_single_macro_sequence(available_macros: List[str]) -> List[SequenceStep]:
+    print("Available macros:")
+    for idx, macro_name in enumerate(available_macros, start=1):
+        print(f"{idx}: {macro_name}")
+
+    choice = prompt_menu_choice(len(available_macros), "Select macro: ")
+    selected_macro = available_macros[choice - 1]
+    print(f'Loaded macro: "{selected_macro}"')
+    return [SequenceStep(macro_name=selected_macro, repeats=1)]
+
+
 def configure_steps(available_macros: List[str], preset_file: str) -> List[SequenceStep]:
     presets = load_presets(preset_file)
 
@@ -342,7 +353,8 @@ def configure_steps(available_macros: List[str], preset_file: str) -> List[Seque
         print("")
         print("1: Load saved preset")
         print("2: Build new sequence")
-        mode_choice = prompt_menu_choice(2, "Choose option: ")
+        print("3: Load macro")
+        mode_choice = prompt_menu_choice(3, "Choose option: ")
 
         if mode_choice == 1:
             loaded = load_sequence_from_preset(presets)
@@ -351,6 +363,9 @@ def configure_steps(available_macros: List[str], preset_file: str) -> List[Seque
             if not validate_macro_references(loaded, set(available_macros)):
                 continue
             return loaded
+
+        if mode_choice == 3:
+            return load_single_macro_sequence(available_macros)
 
         built = build_new_sequence(available_macros)
         prompt_save_preset(built, presets, preset_file)
