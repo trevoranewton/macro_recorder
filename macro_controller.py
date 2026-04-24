@@ -12,6 +12,7 @@ record_process = None
 execute_process = None
 mode = None  # "record" or "play"
 active = False  # record mode toggle state
+execute_start_mode = None  # "playback" or "configure"
 
 
 def write_command(cmd: str) -> None:
@@ -20,24 +21,31 @@ def write_command(cmd: str) -> None:
 
 
 def start_execute_process(start_mode: str, restart: bool) -> None:
-    global execute_process
+    global execute_process, execute_start_mode
+
+    if execute_process and execute_process.poll() is not None:
+        execute_process = None
+        execute_start_mode = None
+
+    # If current executor mode differs, restart so the requested menu opens.
+    if execute_process and execute_start_mode != start_mode:
+        restart = True
 
     if restart and execute_process:
         execute_process.terminate()
         execute_process = None
-
-    if execute_process and execute_process.poll() is not None:
-        execute_process = None
+        execute_start_mode = None
 
     if execute_process is None:
         execute_process = subprocess.Popen(
             ["python", execute_script, "--mode", start_mode],
             cwd=base_dir,
         )
+        execute_start_mode = start_mode
 
 
 def set_record_mode() -> None:
-    global mode, record_process, execute_process, active
+    global mode, record_process, execute_process, execute_start_mode, active
 
     if mode == "record":
         return
@@ -51,6 +59,7 @@ def set_record_mode() -> None:
     if execute_process:
         execute_process.terminate()
         execute_process = None
+        execute_start_mode = None
 
     if record_process:
         record_process.terminate()
