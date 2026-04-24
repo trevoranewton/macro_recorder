@@ -50,10 +50,6 @@ def set_record_mode():
 def set_play_mode():
     global mode, record_process, execute_process, active
 
-    # 🚫 Prevent re-trigger if already in play mode
-    if mode == "play":
-        return
-
     print("\n🔁 PLAYBACK MODE")
 
     mode = "play"
@@ -64,9 +60,10 @@ def set_play_mode():
         record_process.terminate()
         record_process = None
 
-    # Start executor fresh
+    # Always restart executor so playback menu is shown again.
     if execute_process:
         execute_process.terminate()
+        execute_process = None
 
     execute_process = subprocess.Popen(["python", execute_script], cwd=base_dir)
 
