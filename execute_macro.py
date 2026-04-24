@@ -263,18 +263,18 @@ def build_new_sequence(available_macros: List[str]) -> List[SequenceStep]:
         print("")
         display_macros(available_macros)
         if steps:
-            print("Type 'done' to finish sequence.")
+            print("Press Enter with no input to finish sequence.")
 
         # Infinite step can only be the last step.
         if steps and steps[-1].repeats is INFINITE:
-            done = input("Last step is infinite. Type 'done' to finish: ").strip().lower()
-            if done == "done":
+            done = input("Last step is infinite. Press Enter to finish: ").strip()
+            if done == "":
                 break
             print("You can only finish now because infinite repeat must be last.")
             continue
 
-        raw = input("Select macro number (or 'done'): ").strip().lower()
-        if raw == "done":
+        raw = input("Select macro number or press Enter when done: ").strip()
+        if raw == "":
             if not steps:
                 print("Add at least one step before finishing.")
                 continue
