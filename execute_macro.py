@@ -300,7 +300,6 @@ def build_new_sequence(available_macros: List[str]) -> List[SequenceStep]:
     steps: List[SequenceStep] = []
 
     while True:
-        print("")
         display_macros(available_macros)
         if steps:
             print("Press Enter with no input to finish sequence.")
@@ -393,7 +392,6 @@ def configure_steps_playback(available_macros: List[str], preset_file: str) -> L
     presets = load_presets(preset_file)
 
     while True:
-        print("")
         print("1: Load saved sequence")
         print("2: Load macro")
         mode_choice = prompt_menu_choice(2, "Choose option: ")
