@@ -1,4 +1,5 @@
 import os
+import signal
 import subprocess
 from pynput import keyboard
 
@@ -13,6 +14,8 @@ execute_process = None
 mode = None  # "record" or "play"
 active = False  # record mode toggle state
 execute_start_mode = None  # "playback" or "configure"
+hotkeys_listener = None
+shutting_down = False
 
 
 def write_command(cmd: str) -> None:
@@ -112,10 +115,43 @@ def toggle_action() -> None:
         write_command("play_toggle")
 
 
+def shutdown_controller() -> None:
+    global record_process, execute_process, execute_start_mode, hotkeys_listener, shutting_down
+
+    if shutting_down:
+        return
+    shutting_down = True
+
+    print("\nShutting down...")
+
+    if record_process:
+        record_process.terminate()
+        record_process = None
+
+    if execute_process:
+        execute_process.terminate()
+        execute_process = None
+        execute_start_mode = None
+
+    if hotkeys_listener:
+        hotkeys_listener.stop()
+
+
+def handle_sigint(_signum, _frame) -> None:
+    shutdown_controller()
+
+
+def request_shutdown() -> None:
+    shutdown_controller()
+
+
 print("Pipeline Controller Running")
 print("CTRL + Shift + 1 -> Record Mode")
 print("CTRL + Shift + 2 -> Playback Mode")
 print("CTRL + Shift + 3 -> Configure Sequence Mode")
+print("CTRL + Shift + Q -> Quit Controller")
+
+signal.signal(signal.SIGINT, handle_sigint)
 
 try:
     with keyboard.GlobalHotKeys(
@@ -124,15 +160,10 @@ try:
             "<ctrl>+<shift>+2": set_play_mode,
             "<ctrl>+<shift>+3": set_configure_sequence_mode,
             "<ctrl>+<shift>+0": toggle_action,
+            "<ctrl>+<shift>+q": request_shutdown,
         }
     ) as hotkeys:
+        hotkeys_listener = hotkeys
         hotkeys.join()
-
 except KeyboardInterrupt:
-    print("\nShutting down...")
-
-    if record_process:
-        record_process.terminate()
-
-    if execute_process:
-        execute_process.terminate()
+    shutdown_controller()
