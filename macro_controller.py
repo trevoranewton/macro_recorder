@@ -73,7 +73,7 @@ def set_record_mode() -> None:
 def set_play_mode() -> None:
     global mode, record_process, active
 
-    print("\n\nPLAYBACK MODE")
+    print("\nPLAYBACK MODE")
 
     mode = "play"
     active = False
@@ -89,7 +89,7 @@ def set_play_mode() -> None:
 def set_configure_sequence_mode() -> None:
     global mode, record_process, active
 
-    print("\n\nCONFIGURE SEQUENCE MODE")
+    print("\nCONFIGURE SEQUENCE MODE")
 
     mode = "play"
     active = False
