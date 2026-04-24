@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 control.txt
 macros/
+Macros/
+sequence_presets.json
