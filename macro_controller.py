@@ -53,7 +53,7 @@ def set_record_mode() -> None:
     if mode == "record":
         return
 
-    print("\nRECORD MODE")
+    print("\n\nRECORD MODE")
     print("Press CTRL + Shift + 0 to start/stop recording")
 
     mode = "record"
@@ -73,7 +73,7 @@ def set_record_mode() -> None:
 def set_play_mode() -> None:
     global mode, record_process, active
 
-    print("\nPLAYBACK MODE")
+    print("\n\nPLAYBACK MODE")
 
     mode = "play"
     active = False
@@ -89,7 +89,7 @@ def set_play_mode() -> None:
 def set_configure_sequence_mode() -> None:
     global mode, record_process, active
 
-    print("\nCONFIGURE SEQUENCE MODE")
+    print("\n\nCONFIGURE SEQUENCE MODE")
 
     mode = "play"
     active = False
