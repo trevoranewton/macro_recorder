@@ -5,6 +5,7 @@ A Python macro recording and playback system that captures real mouse and keyboa
 ## Features
 - Record mouse and keyboard input with precise timing
 - Save macros as JSON files
+- Automatically captures the current mouse position at recording start
 - Playback setup options: load preset, build new sequence, or load single macro
 - Build sequences with per-step repeat counts (`1`, `N`, or `inf`)
 - Repeat the full sequence (`1`, `N`, or `inf`) at playback time

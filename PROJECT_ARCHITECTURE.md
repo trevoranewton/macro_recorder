@@ -47,6 +47,7 @@ This script captures all user input in real time and converts it into structured
 - Mouse movement (`x`, `y`) with `pynput`
 - Mouse clicks (button and press/release state)
 - Keyboard key down and key up events with the `keyboard` library
+- Seeds each recording with the current cursor position as an initial move event
 - Records precise timing between events using relative delays
 - Displays a countdown popup before recording begins (`tkinter`)
 - Uses `control.txt` to toggle recording state

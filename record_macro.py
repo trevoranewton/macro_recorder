@@ -16,6 +16,7 @@ macro_dir = os.path.join(root_dir, "macros")
 os.makedirs(macro_dir, exist_ok=True)
 
 control_file = os.path.join(root_dir, "control.txt")
+mouse_controller = mouse.Controller()
 
 # ====== COUNTDOWN POPUP ======
 def countdown_popup(seconds=3):
@@ -135,7 +136,14 @@ def check_control():
 
         recording = True
         events = []
-        last_event_time = None
+        start_x, start_y = mouse_controller.position
+        events.append({
+            "type": "move",
+            "x": start_x,
+            "y": start_y,
+            "delay": 0
+        })
+        last_event_time = time.time()
 
         print("🔴 Recording started.")
 
