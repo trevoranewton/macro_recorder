@@ -75,9 +75,11 @@ Users are prompted to name and save recordings after completion.
 This script replays recorded macros using system-level input simulation.
 
 ### Features
-- Lists available macro folders and supports chain selection with CLI input
-- Loads multiple macro JSON files and builds a playback plan
-- Supports finite chain runs (N cycles) or indefinite playback
+- Prompts for `Load saved preset` or `Build new sequence`
+- Uses numbered menu selection for macros and presets
+- Supports per-step repeat counts (`1`, `N`, or `inf`) with `inf` restricted to the final step
+- Supports full-sequence loop count at playback configuration (`1`, `N`, or `inf`)
+- Saves reusable sequence presets in `sequence_presets.json` (macro references and repeat settings)
 - Replays events sequentially while preserving recorded delays
 - Simulates mouse and keyboard input using `pynput`
 - Uses modular playback classes for easier extension
@@ -87,9 +89,10 @@ Playback is driven by a loop-based chain player:
 
 - Continuously checks elapsed time against each event's delay
 - Executes each event once delay thresholds are met
-- Advances through events and clips with index-based state
-- Increments chain-run counters when a full sequence completes
-- Stops automatically when target run count is reached (or continues indefinitely)
+- Advances through events, step repeats, and sequence loops with index-based state
+- Supports immediate pause (`play_stop`)
+- On resume (`play_start`), restarts the current step from repeat 1 while staying on that step
+- Stops automatically when full-sequence loop target is reached (or continues indefinitely)
 
 This approach avoids per-event sleep calls and maintains smoother playback timing.
 
@@ -131,6 +134,13 @@ Using a shared text file instead of sockets or queues:
 - Removes external dependencies
 - Keeps the system lightweight and local
 
+### Preset Storage Model
+Using `sequence_presets.json` as configuration-only storage:
+
+- Keeps macro event data in a single source of truth (`Macros/`)
+- Stores only references to macro names plus repeat settings
+- Avoids duplicating recorded event files
+
 ### Event-Based Recording Model
 Capturing discrete events with timing:
 
@@ -156,7 +166,7 @@ Using a continuous loop with time checks instead of fixed delays:
 - GUI-based macro manager and editor
 - Playback speed control
 - Conditional logic and branching
-- Per-clip repeat counts inside a single chain plan
+- Category/folder organization for sequence presets
 - Smarter input filtering (movement thresholds, deduplication)
 - Resolution-independent execution
 - Integration with external triggers or APIs

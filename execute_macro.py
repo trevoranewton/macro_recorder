@@ -3,41 +3,52 @@ import os
 import time
 import msvcrt
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pynput.keyboard import Controller as KeyboardController, Key
 from pynput.mouse import Button, Controller as MouseController
 
 
+INFINITE = None
+
+
 @dataclass
-class MacroClip:
-    name: str
-    events: list
+class SequenceStep:
+    macro_name: str
+    repeats: Optional[int]  # None == infinite
 
 
 @dataclass
 class PlaybackPlan:
-    clips: List[MacroClip]
-    target_chain_runs: Optional[int]  # None means run indefinitely
+    steps: List[SequenceStep]
+    sequence_loops: Optional[int]  # None == infinite
 
 
-class MacroChainPlayer:
-    def __init__(self, plan: PlaybackPlan, mouse: MouseController, keyboard_ctrl: KeyboardController):
+class SequencePlayer:
+    def __init__(
+        self,
+        plan: PlaybackPlan,
+        events_by_macro: Dict[str, list],
+        mouse: MouseController,
+        keyboard_ctrl: KeyboardController,
+    ):
         self.plan = plan
+        self.events_by_macro = events_by_macro
         self.mouse = mouse
         self.keyboard_ctrl = keyboard_ctrl
 
         self.playing = False
-        self.clip_index = 0
+        self.current_step_index = 0
+        self.current_step_repeat_index = 0
+        self.sequence_loops_completed = 0
         self.event_index = 0
-        self.chain_runs_completed = 0
         self.last_event_time = time.time()
 
     def start(self) -> None:
+        # Resume from current step, but restart this step from the beginning.
         self.playing = True
-        self.clip_index = 0
         self.event_index = 0
-        self.chain_runs_completed = 0
+        self.current_step_repeat_index = 0
         self.last_event_time = time.time()
         print("Playback started.")
 
@@ -47,20 +58,22 @@ class MacroChainPlayer:
         self.playing = False
 
     def step(self) -> None:
-        if not self.playing or not self.plan.clips:
+        if not self.playing or not self.plan.steps:
             return
 
-        clip = self.plan.clips[self.clip_index]
-        if not clip.events:
-            self._advance_clip()
+        current_step = self.plan.steps[self.current_step_index]
+        events = self.events_by_macro.get(current_step.macro_name, [])
+
+        if not events:
+            # Empty macro behaves like an instant completed run.
+            self._complete_single_step_run(current_step)
             return
 
-        if self.event_index >= len(clip.events):
-            self._advance_clip()
+        if self.event_index >= len(events):
+            self._complete_single_step_run(current_step)
             return
 
-        event = clip.events[self.event_index]
-
+        event = events[self.event_index]
         if time.time() - self.last_event_time < event.get("delay", 0):
             return
 
@@ -68,19 +81,34 @@ class MacroChainPlayer:
         self._execute_event(event)
         self.event_index += 1
 
-    def _advance_clip(self) -> None:
-        self.clip_index += 1
+    def _complete_single_step_run(self, current_step: SequenceStep) -> None:
         self.event_index = 0
         self.last_event_time = time.time()
 
-        if self.clip_index < len(self.plan.clips):
+        if current_step.repeats is INFINITE:
             return
 
-        self.clip_index = 0
-        self.chain_runs_completed += 1
+        self.current_step_repeat_index += 1
+        if self.current_step_repeat_index < current_step.repeats:
+            return
 
-        if self.plan.target_chain_runs is not None and self.chain_runs_completed >= self.plan.target_chain_runs:
-            self.stop("Playback complete: target chain runs reached.")
+        self.current_step_repeat_index = 0
+        self.current_step_index += 1
+
+        if self.current_step_index < len(self.plan.steps):
+            return
+
+        self.current_step_index = 0
+        self.sequence_loops_completed += 1
+
+        if (
+            self.plan.sequence_loops is not INFINITE
+            and self.sequence_loops_completed >= self.plan.sequence_loops
+        ):
+            self.current_step_index = 0
+            self.current_step_repeat_index = 0
+            self.event_index = 0
+            self.stop("Playback complete: sequence loop target reached.")
 
     def _execute_event(self, event: dict) -> None:
         event_type = event.get("type")
@@ -90,9 +118,7 @@ class MacroChainPlayer:
             return
 
         if event_type == "click":
-            button_text = event.get("button", "")
-            button = Button.left if "left" in button_text else Button.right
-
+            button = Button.left if "left" in event.get("button", "") else Button.right
             if event.get("pressed"):
                 self.mouse.press(button)
             else:
@@ -102,14 +128,13 @@ class MacroChainPlayer:
         if event_type == "key":
             key = parse_key(event.get("key", ""))
             action = event.get("action")
-
             if action == "down":
                 self.keyboard_ctrl.press(key)
             elif action == "up":
                 self.keyboard_ctrl.release(key)
             return
 
-        # "noop" and unknown types are intentionally ignored.
+        # "noop" or unknown event types are ignored.
 
 
 def clear_input_buffer() -> None:
@@ -124,91 +149,229 @@ def parse_key(key_str: str):
         return key_str
 
 
-def read_int(prompt: str, minimum: int = 1) -> int:
+def parse_positive_int(value: str) -> Optional[int]:
+    try:
+        parsed = int(value)
+        if parsed >= 1:
+            return parsed
+    except ValueError:
+        pass
+    return None
+
+
+def prompt_repeats(prompt_text: str) -> Optional[int]:
     while True:
-        raw = input(prompt).strip()
-        try:
-            value = int(raw)
-            if value >= minimum:
-                return value
-        except ValueError:
-            pass
-        print(f"Please enter a whole number >= {minimum}.")
+        raw = input(prompt_text).strip().lower()
+        if raw == "":
+            return 1
+        if raw in {"inf", "infinite", "indefinite"}:
+            return INFINITE
+        parsed = parse_positive_int(raw)
+        if parsed is not None:
+            return parsed
+        print("Enter a whole number >= 1, or 'inf'.")
+
+
+def prompt_menu_choice(max_value: int, prompt_text: str) -> int:
+    while True:
+        raw = input(prompt_text).strip()
+        parsed = parse_positive_int(raw)
+        if parsed is not None and parsed <= max_value:
+            return parsed
+        print(f"Enter a number between 1 and {max_value}.")
+
+
+def read_json_file(path: str, default):
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return default
+
+
+def write_json_file(path: str, data) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+def get_available_macros(macro_dir: str) -> List[str]:
+    return sorted(
+        [name for name in os.listdir(macro_dir) if os.path.isdir(os.path.join(macro_dir, name))]
+    )
 
 
 def load_macro_events(macro_dir: str, macro_name: str) -> list:
-    macro_folder = os.path.join(macro_dir, macro_name)
-    file_path = os.path.join(macro_folder, f"{macro_name}_raw.json")
-
+    file_path = os.path.join(macro_dir, macro_name, f"{macro_name}_raw.json")
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def parse_chain_selection(raw: str, total: int) -> List[int]:
-    pieces = [part.strip() for part in raw.split(",") if part.strip()]
-    if not pieces:
-        return []
-
-    selected = []
-    for piece in pieces:
-        value = int(piece)
-        if value < 1 or value > total:
-            raise ValueError("Selection contains out-of-range values.")
-        selected.append(value - 1)
-    return selected
+def load_presets(preset_file: str) -> Dict[str, list]:
+    data = read_json_file(preset_file, {})
+    if isinstance(data, dict):
+        return data
+    return {}
 
 
-def build_playback_plan(macro_dir: str) -> PlaybackPlan:
-    folders = sorted(
-        [f for f in os.listdir(macro_dir) if os.path.isdir(os.path.join(macro_dir, f))]
-    )
+def save_presets(preset_file: str, presets: Dict[str, list]) -> None:
+    write_json_file(preset_file, presets)
 
-    if not folders:
-        raise RuntimeError("No macro folders found. Record a macro first.")
 
+def serialize_steps(steps: List[SequenceStep]) -> list:
+    result = []
+    for step in steps:
+        result.append({"macro": step.macro_name, "repeats": step.repeats})
+    return result
+
+
+def deserialize_steps(raw_steps: list) -> List[SequenceStep]:
+    steps: List[SequenceStep] = []
+    for entry in raw_steps:
+        if not isinstance(entry, dict):
+            continue
+        macro_name = entry.get("macro")
+        repeats = entry.get("repeats", 1)
+        if not isinstance(macro_name, str) or not macro_name.strip():
+            continue
+        if repeats is not None and (not isinstance(repeats, int) or repeats < 1):
+            continue
+        steps.append(SequenceStep(macro_name=macro_name, repeats=repeats))
+    return steps
+
+
+def validate_macro_references(steps: List[SequenceStep], available_macros: set) -> bool:
+    for step in steps:
+        if step.macro_name not in available_macros:
+            print(f'"{step.macro_name}" macro does not exist')
+            return False
+    return True
+
+
+def display_macros(available_macros: List[str]) -> None:
     print("Available macros:")
-    for i, folder in enumerate(folders, start=1):
-        print(f"{i}: {folder}")
+    for idx, macro_name in enumerate(available_macros, start=1):
+        print(f"{idx}: {macro_name}")
 
-    print("")
-    print("Build a chain by entering macro numbers in order, comma-separated.")
-    print("Example: 1,3,2,3")
 
-    chain_indices: List[int] = []
-    while not chain_indices:
-        raw = input("Chain selection: ").strip()
-        try:
-            chain_indices = parse_chain_selection(raw, len(folders))
-        except ValueError:
-            print("Invalid selection. Use numbers from the list, separated by commas.")
+def build_new_sequence(available_macros: List[str]) -> List[SequenceStep]:
+    steps: List[SequenceStep] = []
 
-    clips: List[MacroClip] = []
-    for idx in chain_indices:
-        macro_name = folders[idx]
-        events = load_macro_events(macro_dir, macro_name)
-        clips.append(MacroClip(name=macro_name, events=events))
-
-    target_runs: Optional[int]
     while True:
-        run_input = input(
-            "How many times should the full chain run? (number or 'inf'): "
-        ).strip().lower()
+        print("")
+        display_macros(available_macros)
+        if steps:
+            print("Type 'done' to finish sequence.")
 
-        if run_input in {"inf", "infinite", "indefinite"}:
-            target_runs = None
+        # Infinite step can only be the last step.
+        if steps and steps[-1].repeats is INFINITE:
+            done = input("Last step is infinite. Type 'done' to finish: ").strip().lower()
+            if done == "done":
+                break
+            print("You can only finish now because infinite repeat must be last.")
+            continue
+
+        raw = input("Select macro number (or 'done'): ").strip().lower()
+        if raw == "done":
+            if not steps:
+                print("Add at least one step before finishing.")
+                continue
             break
 
-        try:
-            parsed = int(run_input)
-            if parsed >= 1:
-                target_runs = parsed
-                break
-        except ValueError:
-            pass
+        selected = parse_positive_int(raw)
+        if selected is None or selected > len(available_macros):
+            print("Invalid macro selection.")
+            continue
 
-        print("Enter a whole number >= 1, or 'inf'.")
+        macro_name = available_macros[selected - 1]
+        repeats = prompt_repeats(f"Repeats for '{macro_name}' (Enter=1, number, inf): ")
+        steps.append(SequenceStep(macro_name=macro_name, repeats=repeats))
 
-    return PlaybackPlan(clips=clips, target_chain_runs=target_runs)
+    return steps
+
+
+def prompt_save_preset(steps: List[SequenceStep], presets: Dict[str, list], preset_file: str) -> None:
+    save_choice = input("Save this sequence as a preset? (y/n): ").strip().lower()
+    if save_choice != "y":
+        return
+
+    while True:
+        preset_name = input("Preset name: ").strip()
+        if not preset_name:
+            print("Preset name cannot be empty.")
+            continue
+
+        if preset_name in presets:
+            overwrite = input(f'Preset "{preset_name}" exists. Overwrite? (y/n): ').strip().lower()
+            if overwrite != "y":
+                continue
+
+        presets[preset_name] = serialize_steps(steps)
+        save_presets(preset_file, presets)
+        print(f'Preset "{preset_name}" saved.')
+        return
+
+
+def load_sequence_from_preset(presets: Dict[str, list]) -> Optional[List[SequenceStep]]:
+    if not presets:
+        print("No saved presets found.")
+        return None
+
+    names = sorted(presets.keys())
+    print("Available presets:")
+    for idx, name in enumerate(names, start=1):
+        print(f"{idx}: {name}")
+
+    choice = prompt_menu_choice(len(names), "Select preset: ")
+    selected_name = names[choice - 1]
+    steps = deserialize_steps(presets[selected_name])
+
+    if not steps:
+        print(f'Preset "{selected_name}" is empty or invalid.')
+        return None
+
+    print(f'Loaded preset: "{selected_name}"')
+    return steps
+
+
+def configure_steps(available_macros: List[str], preset_file: str) -> List[SequenceStep]:
+    presets = load_presets(preset_file)
+
+    while True:
+        print("")
+        print("1: Load saved preset")
+        print("2: Build new sequence")
+        mode_choice = prompt_menu_choice(2, "Choose option: ")
+
+        if mode_choice == 1:
+            loaded = load_sequence_from_preset(presets)
+            if loaded is None:
+                continue
+            if not validate_macro_references(loaded, set(available_macros)):
+                continue
+            return loaded
+
+        built = build_new_sequence(available_macros)
+        prompt_save_preset(built, presets, preset_file)
+        return built
+
+
+def configure_plan(available_macros: List[str], preset_file: str) -> PlaybackPlan:
+    steps = configure_steps(available_macros, preset_file)
+    sequence_loops = prompt_repeats(
+        "Repeat full sequence (Enter=1, number, inf): "
+    )
+    return PlaybackPlan(steps=steps, sequence_loops=sequence_loops)
+
+
+def load_events_for_steps(macro_dir: str, steps: List[SequenceStep]) -> Dict[str, list]:
+    events_by_macro: Dict[str, list] = {}
+    for step in steps:
+        if step.macro_name in events_by_macro:
+            continue
+        events_by_macro[step.macro_name] = load_macro_events(macro_dir, step.macro_name)
+    return events_by_macro
 
 
 def read_control_commands(control_file: str) -> List[str]:
@@ -217,11 +380,11 @@ def read_control_commands(control_file: str) -> List[str]:
 
     try:
         with open(control_file, "r", encoding="utf-8") as f:
-            lines = [line.strip() for line in f.readlines() if line.strip()]
+            commands = [line.strip() for line in f.readlines() if line.strip()]
     except PermissionError:
         return []
 
-    if not lines:
+    if not commands:
         return []
 
     try:
@@ -229,30 +392,43 @@ def read_control_commands(control_file: str) -> List[str]:
     except PermissionError:
         pass
 
-    return lines
+    return commands
 
 
 def main() -> None:
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    macro_dir = os.path.join(root_dir, "macros")
+    macro_dir = os.path.join(root_dir, "Macros")
     control_file = os.path.join(root_dir, "control.txt")
-    os.makedirs(macro_dir, exist_ok=True)
+    preset_file = os.path.join(root_dir, "sequence_presets.json")
 
+    os.makedirs(macro_dir, exist_ok=True)
     clear_input_buffer()
-    plan = build_playback_plan(macro_dir)
+
+    available_macros = get_available_macros(macro_dir)
+    if not available_macros:
+        print("No macros found. Record a macro first.")
+        return
+
+    plan = configure_plan(available_macros, preset_file)
+    events_by_macro = load_events_for_steps(macro_dir, plan.steps)
 
     print("")
-    print("Chain configured:")
-    print(" -> ".join(clip.name for clip in plan.clips))
-    if plan.target_chain_runs is None:
-        print("Run mode: indefinite")
+    print("Configured sequence:")
+    for idx, step in enumerate(plan.steps, start=1):
+        repeats_text = "inf" if step.repeats is INFINITE else str(step.repeats)
+        print(f"{idx}. {step.macro_name} x{repeats_text}")
+    if plan.sequence_loops is INFINITE:
+        print("Full sequence loops: inf")
     else:
-        print(f"Run mode: {plan.target_chain_runs} chain run(s)")
+        print(f"Full sequence loops: {plan.sequence_loops}")
     print("Ready (Ctrl + Shift + 0 to start/stop)")
 
-    mouse = MouseController()
-    keyboard_ctrl = KeyboardController()
-    player = MacroChainPlayer(plan, mouse, keyboard_ctrl)
+    player = SequencePlayer(
+        plan=plan,
+        events_by_macro=events_by_macro,
+        mouse=MouseController(),
+        keyboard_ctrl=KeyboardController(),
+    )
 
     while True:
         commands = read_control_commands(control_file)

@@ -5,8 +5,9 @@ A Python macro recording and playback system that captures real mouse and keyboa
 ## Features
 - Record mouse and keyboard input with precise timing
 - Save macros as JSON files
-- Chain multiple recorded macros in a custom order
-- Choose finite chain runs or indefinite playback
+- Build sequences with per-step repeat counts (`1`, `N`, or `inf`)
+- Repeat the full sequence (`1`, `N`, or `inf`) at playback time
+- Save and load reusable sequence presets
 - Replay macros with accurate timing behavior
 - Hotkey-based control system (start/stop recording and playback)
 - Modular architecture with separate controller, recorder, and executor
@@ -17,6 +18,7 @@ A Python macro recording and playback system that captures real mouse and keyboa
 - `execute_macro.py` builds playback chains and executes timed replay
 - `control.txt` is used for inter-process command signaling
 - `Macros/` stores recorded macro data
+- `sequence_presets.json` stores saved sequence presets (macro references + repeat config)
 
 ## Documentation
 - Architecture and design details: `PROJECT_ARCHITECTURE.md`
