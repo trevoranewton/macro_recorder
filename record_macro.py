@@ -12,7 +12,7 @@ last_event_time = None
 
 # ====== PATH ======
 root_dir = os.path.dirname(os.path.abspath(__file__))
-macro_dir = os.path.join(root_dir, "macros")
+macro_dir = os.path.join(root_dir, "Macros")
 os.makedirs(macro_dir, exist_ok=True)
 
 control_file = os.path.join(root_dir, "control.txt")
